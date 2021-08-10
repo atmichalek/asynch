@@ -711,7 +711,8 @@ void TilesModel(double t, const double * const y_i, unsigned int dim, const doub
     //double q_b = max(0.001, y_i[4]);                                // for base flow separation
     //Fluxes
     double q_in = forcing_values[0] * (0.001/60);	//[m/min]
-    
+    double snowmelt = forcing_values[3] * (0.001/60);	//[m/min]
+    qin += snowmelt;
     double pow_t = (1.0 - s_l/t_L > 0.0)? pow(1.0 - s_l/t_L,3): 0.0;
     //double pow_t2 = (4.7 - 3.4*(s_s/1.67) > 0.0)? pow(4.7 - 3.4*(s_s/1.67),0.405): 0.0; // Exp kind of Green y Ampt 
     double q_pl = k2*99.0*pow_t*s_p;
