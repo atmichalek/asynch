@@ -459,7 +459,7 @@ int Load_Local_Parameters(
                     if (fscanf(paramdata, "%lf", &(db_params[i][j])) == 0)
                     {
                         printf("Error reading from parameter file %s.\n", globals->prm_filename);
-                        printf("Check line %u param %u from parameter file\n", i,j);
+                        printf("Check line %u param %u from parameter file\n", i+2,j);
                         return 1;
                     }
                 }
