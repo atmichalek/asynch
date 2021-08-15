@@ -270,7 +270,7 @@ case 20:	num_global_params = 9;
         globals->areah_idx = 2;
         globals->num_disk_params = 3;
         globals->convertarea_flag = 0;
-        globals->num_forcings = 2;
+        globals->num_forcings = 3;
         globals->min_error_tolerances = 3;
         break;
         //--------------------------------------------------------------------------------------------

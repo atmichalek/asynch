@@ -3099,8 +3099,9 @@ void LinearHillslope_MonthlyEvap(double t, const double * const y_i, unsigned in
     double C_p, C_a, C_T, Corr_evap;
     //double e_pot = forcing_values[1] * (1e-3/60.0);
     double e_pot = forcing_values[1] * (1e-3 / (30.0*24.0*60.0));	//[mm/month] -> [m/min]
-	
-	double infiltration_eff = forcing_values[2] + 1;
+	double rain = forcing_values[0];
+    double snowmelt = forcing_values[2];
+	//double infiltration_eff = forcing_values[2] + 1;
 
     if (e_pot > 0.0)
     {
@@ -3128,8 +3129,8 @@ void LinearHillslope_MonthlyEvap(double t, const double * const y_i, unsigned in
     ans[0] = invtau * pow(q, lambda_1) * ans[0];
 
     //Hillslope
-    ans[1] = forcing_values[0] * c_1 - q_pl - e_p;
-    ans[2] = forcing_values[0] * c_2 - q_al - e_a;
+    ans[1] = (rain +snowmelt) * c_1 - q_pl - e_p;
+    ans[2] = (rain +snowmelt) * c_2 - q_al - e_a;
 
     /*
     if ((s_p > 0.000010) && (s_p < 0.000012) && (t < 200)) {
