@@ -521,6 +521,19 @@ case 20:	num_global_params = 9;
         globals->min_error_tolerances = 1;	//This should probably be higher...
         break;
         //--------------------------------------------------------------------------------------------
+    case 251:	num_global_params = 11;
+        globals->uses_dam = 0;
+        globals->num_params = 8;
+        globals->dam_params_size = 0;
+        globals->area_idx = 0;
+        globals->areah_idx = 2;
+        globals->num_disk_params = 3;
+        globals->convertarea_flag = 0;
+        globals->num_forcings = 5;
+        globals->min_error_tolerances = 4;
+        break;
+//--------------------------------------------------------------------------------------------
+
     case 252:	num_global_params = 11;
         globals->uses_dam = 0;
         globals->num_params = 8;
@@ -533,6 +546,7 @@ case 20:	num_global_params = 9;
         globals->min_error_tolerances = 4;
         break;
         //--------------------------------------------------------------------------------------------
+        
     case 253:	num_global_params = 11;
         globals->uses_dam = 0;
         globals->num_params = 8;
@@ -930,7 +944,7 @@ void ConvertParams(
         params[2] *= 1e6;		//A_h: km^2 -> m^2
         params[4] *= .001;		//H_h: mm -> m
     }
-    else if (model_uid == 252 || model_uid == 253 || model_uid == 254 || model_uid == 255 || model_uid == 256 || model_uid == 257 || model_uid == 258 || model_uid == 259 || model_uid == 260 || model_uid == 261 || model_uid == 262 || model_uid == 263 || model_uid == 264)
+    else if (model_uid == 251 || model_uid == 252 || model_uid == 253 || model_uid == 254 || model_uid == 255 || model_uid == 256 || model_uid == 257 || model_uid == 258 || model_uid == 259 || model_uid == 260 || model_uid == 261 || model_uid == 262 || model_uid == 263 || model_uid == 264)
     {
         params[1] *= 1000;		//L_h: km -> m
         params[2] *= 1e6;		//A_h: km^2 -> m^2
@@ -1601,6 +1615,26 @@ void InitRoutines(
         link->algebraic = NULL;
         link->check_state = NULL;
         link->check_consistency = &CheckConsistency_Nonzero_3States;
+    }
+        else if (model_uid == 251)
+    {
+        link->dim = 4;
+        link->no_ini_start = link->dim;
+        link->diff_start = 0;
+
+        link->num_dense = 1;
+        link->dense_indices = (unsigned int*)realloc(link->dense_indices, link->num_dense * sizeof(unsigned int));
+        link->dense_indices[0] = 0;
+
+        if (link->has_res)
+        {
+            link->differential = &TopLayerHillslope_Reservoirs;
+            link->solver = &ForcedSolutionSolver;
+        }
+        else			link->differential = &model251;
+        link->algebraic = NULL;
+        link->check_state = NULL;
+        link->check_consistency = &CheckConsistency_Nonzero_4States;
     }
     else if (model_uid == 252)
     {
@@ -2814,7 +2848,7 @@ void Precalculations(
         vals[7] = (0.001 / 60.0);		//(mm/hr->m/min)  c_1
         vals[8] = A_h / 60.0;	//  c_2
     }
-    else if (model_uid == 252 || model_uid == 253)
+    else if (model_uid == 251 || model_uid == 252 || model_uid == 253)
     {
         //Order of parameters: A_i,L_i,A_h,invtau,k_2,k_i,c_1,c_2
         //The numbering is:	0   1   2    3     4   5   6   7 
