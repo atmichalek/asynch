@@ -797,11 +797,11 @@ case 20:	num_global_params = 9;
 	case 404://tetis01
 		num_global_params = 1;//none
 		globals->uses_dam = 0;
-		globals->num_params = 16;//ai,lengt,ah,v0,lambda1,lambda2,hu,infil,perc,slope,manning,ressubsurf,resgw,meltf,tempth
+		globals->num_params = 15;//ai,lengt,ah,v0,lambda1,lambda2,hu,infil,perc,slope,manning,ressubsurf,resgw,meltf,tempth
 		globals->dam_params_size = 0;
 		globals->area_idx = 0;
 		globals->areah_idx = 2;
-		globals->num_disk_params = 16; //this is how many parameters we read in the prm file
+		globals->num_disk_params = 15; //this is how many parameters we read in the prm file
 		globals->convertarea_flag = 0;
 		globals->num_forcings = 5; //precip, et, temperature,soil temperature,discharge
 		globals->min_error_tolerances = 6; //link->dim; //as many as states:static,surface,subsurf,gw,channel,snow,
