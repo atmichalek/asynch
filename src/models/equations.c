@@ -3227,6 +3227,10 @@ void model404(double t, \
             unsigned short i; //auxiliary variable for loops
             double A_h = params[0]; //Area of the hillslopes [m^2]
             double L = params[1];   // Length of the channel [m]
+            // Catch streams with zero length 
+            if(L<=0){
+                L = 1; // Length of the channel [m]
+            }
             double A_i = params[2]; //drainage area in km2
             double v_0 = params[3];
             double lambda_1 = params[4];
