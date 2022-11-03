@@ -3224,6 +3224,7 @@ void model404(double t, \
 		double *ans)
 {
         if(params[0]>0){  //Don't compute for links over great lakes
+            printf("Entered calculation function.....");
             unsigned short i; //auxiliary variable for loops
             double A_h = params[0]; //Area of the hillslopes [m^2]
             double L = params[1];   // Length of the channel [m]
