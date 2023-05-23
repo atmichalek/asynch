@@ -3223,28 +3223,20 @@ void model404(double t, \
 		void* user, \
 		double *ans)
 {
-        // if(params[0]>0){  //Don't compute for links over great lakes
 
         unsigned short i; //auxiliary variable for loops
-        double A_h = params[0]; //Area of the hillslopes [m^2]
+        double A_h = params[2]; //Area of the hillslopes [m^2]
         double L = params[1];   // Length of the channel [m]
-        // printf("Area: %lf\n",A_h);
-        // Catch streams with zero length 
-        // if(L<=0){
-        //     L = 1000; // Length of the channel [m]
-        // }
-
-        double A_i = params[2]; //drainage area in km2
-        double v_0 = params[3];
+        double A_i = params[0]; //drainage area in km2
+        double v_0 = params[3]; //Channel velocity
         double lambda_1 = params[4];
         double lambda_2 = params[5];
         double invtau = 60.0 * v_0 * pow(A_i, lambda_2) / ((1.0 - lambda_1) * L);//[1/min]  invtau params[3]
-        // printf("invtau: %lf\n",invtau);
-
         double melt_factor = params[13] *(1/(24*60.0)) *(1/1000.0); // mm/day/degree to m/min/degree
         double temp_thres= params[14]; // celsius degrees
-        double x1 =0;
+        double x1 = 0;
 
+        // Conversions
         double c_1 = (0.001 / 60.0);		//(mm/hr->m/min)  c_1
         double c_2 = A_h / 60.0;	//  c_2
 
@@ -3291,9 +3283,6 @@ void model404(double t, \
 
         //static storage
         double Hu = params[6]/1000.0; //max available storage in static tank [mm] to [m]
-        // if(Hu < 0.1){ //Sensitive parameter
-        //     Hu = 0.1;
-        // }
 
         double x2 = max(0,x1 + h1 - Hu); //excedance flow to the second storage [m] [m/min] check units
         //if ground is frozen, x1 goes directly to the surface
@@ -3303,10 +3292,6 @@ void model404(double t, \
         if(frozen_ground <= 0){
              x2 = x1;
         }
-
-        // if(frozen_ground == 1){
-        //     x2 = x1;
-        // }
             
         double d1 = x1 - x2; // the input to static tank [m/min]
         double out1 = min(e_pot, h1); //evaporation from the static tank. it cannot evaporate more than h1 [m]
@@ -3319,24 +3304,24 @@ void model404(double t, \
         if(frozen_ground <= 0){
             infiltration = 0;
         }
-        // if(frozen_ground == 1){
-        //     infiltration = 0;
-        // }
+
         double x3 = min(x2, infiltration); //water that infiltrates to gravitational storage [m/min]
         double d2 = x2 - x3; // the input to surface storage [m] check units
-        double alfa2 = params[9]; //m/s
+        double slope = params[9]; //m/s 
         double manning = params[10];
-        // Originally tried manning's eqn
-        // double alfa2 = (pow(h2,2./3.) * pow(slope,0.5))/manning; //m/s
-        // if(alfa2 <= 0.2){
-        //     alfa2 = 0.2; //Set so that the surface velocity does not go to zero
-        // }
+        double alfa2 = (pow(h2,2./3.) * pow(slope,0.5))/manning; //m/s (mannings's eqn. R=H)
+        
+        // Set a limit so it does not go to zero
+        if(alfa2 <= 0.2){ 
+            alfa2 = 0.2; //Set so that the surface velocity does not go to zero
+        }
 
         double w = alfa2 * L / A_h  * 60; // [1/min]
         w = min(1,w); //water can take less than 1 min (dt) to leave surface
         double out2 =0;
         out2  = h2 * w; //direct runoff [m/min]
         ans[STATE_SURFACE] = d2 - out2; //differential equation of surface storage
+
 
         // SUBSURFACE storage
         double percolation = params[8]*c_1; // percolation rate to aquifer [m/min]
@@ -3357,17 +3342,194 @@ void model404(double t, \
         if(alfa4>=1)
             out4 = h4/alfa4 ; //base flow [m/min]
         ans[STATE_GW] = d4 - out4; //differential equation for aquifer storage
-
         
         //channel storage
         ans[STATE_DISCHARGE] = -q + (out2 + out3 + out4) * c_2; //[m/min] to [m3/s]
         for (i = 0; i < num_parents; i++)
             ans[STATE_DISCHARGE] += y_p[i * dim + STATE_DISCHARGE];
         ans[STATE_DISCHARGE] = invtau * pow(q, lambda_1) * ans[STATE_DISCHARGE];    // discharge[0]
+}
 
-        // printf("Discharge: %lf\n",q);
-        // }
+//Type 410
+//model 404 + tracking of total runoff, surface runoff, subsurface runoff and groundwater runoff
+void model410(double t, \
+		const double * const y_i, \
+		unsigned int dim, \
+		const double * const y_p, \
+		unsigned short num_parents, \
+		unsigned int max_dim, \
+		const double * const global_params, \
+		const double * const params, \
+		const double * const forcing_values, \
+		const QVSData * const qvs, \
+		int state, \
+		void* user, \
+		double *ans)
+{
+        unsigned short i; //auxiliary variable for loops
+        double A_h = params[2]; //Area of the hillslopes [m^2]
+        double L = params[1];   // Length of the channel [m]
+        double A_i = params[0]; //drainage area in km2
+        double v_0 = params[3]; //Channel velocity
+        double lambda_1 = params[4];
+        double lambda_2 = params[5];
+        double invtau = 60.0 * v_0 * pow(A_i, lambda_2) / ((1.0 - lambda_1) * L);//[1/min]  invtau params[3]
+        double melt_factor = params[13] *(1/(24*60.0)) *(1/1000.0); // mm/day/degree to m/min/degree
+        double temp_thres= params[14]; // celsius degrees
+        double x1 = 0;
+        
+        // Conversions
+        double c_1 = (0.001 / 60.0);		//(mm/hr->m/min)  c_1
+        double c_2 = A_h / 60.0;	//  c_2
 
+        //forcings
+        double rainfall = forcing_values[0] * c_1; //rainfall. from [mm/hr] to [m/min]
+        double e_pot = forcing_values[1] * (1e-3 / (30.0*24.0*60.0));//potential et[mm/month] -> [m/min]
+        double temperature = forcing_values[2]; //daily temperature in Celsius
+        double frozen_ground = forcing_values[3]; // 1 if ground is frozen, 0 if not frozen 
+
+        // 9 states
+        // i need to put the fluxes on top because cant print more than state7. bug
+        //y0=q discharge[m3/s]
+        //y1 = basin rainfall and snowmelt [m3/hour]
+        //y2 = basin surface runoff [m3/hour]
+        //y3= basin subsurface runoff [m3/hour]
+        //y4 = basin gw rounoff [m3/hour]
+        //y5= h1 static storage[m]
+        //y6= h2 water hill surface[m]
+        //y7 = h3 water upper soil [m]
+        //y8 = h4  water lower soil [m]
+        //y9 = h5 snow storage [m]
+        unsigned int STATE_DISCHARGE=0;
+        unsigned int STATE_CUMRAINFALL=1;
+        unsigned int STATE_CUMSURF = 2;
+        unsigned int STATE_CUMSUB=3;
+        unsigned int STATE_CUMGW = 4;
+        unsigned int STATE_STATIC=5;
+        unsigned int STATE_SURFACE=6;
+        unsigned int STATE_SUBSURF =7;
+        unsigned int STATE_GW = 8;
+        unsigned int STATE_SNOW = 9;
+
+        #ifndef minf
+        #define minf(a,b) ((a) < (b) ? (a) : (b))
+        #endif
+
+        #ifndef maxf
+        #define maxf(a,b) ((a) > (b) ? (a) : (b))
+        #endif
+
+        //INITIAL VALUES
+        double h5 = y_i[STATE_SNOW];//snow storage [m]
+        double basin_rainfall = y_i[STATE_CUMRAINFALL]; //[m3/hour] see last lines
+		double h1 = y_i[STATE_STATIC]; //static storage [m]
+		double h2 = y_i[STATE_SURFACE];//water in the hillslope surface [m]
+		double h3 = y_i[STATE_SUBSURF]; //water in the gravitational storage in the upper part of soil [m]
+		double h4 = y_i[STATE_GW]; //water in the aquifer storage [m]
+	    double q = y_i[STATE_DISCHARGE];      //[m^3/s]
+
+        
+        //snow storage
+        //temperature =0 is the flag for no forcing the variable. no snow process
+        if(temperature==0){
+            x1 = rainfall;
+            ans[STATE_SNOW]=0;
+        }
+        else{
+            if(temperature>=temp_thres){
+                double snowmelt = min(h5,temperature * melt_factor); // in [m]
+                ans[STATE_SNOW]=-snowmelt; //melting outs of snow storage
+                x1 = rainfall + snowmelt; // in [m]
+            }
+            if(temperature != 0 & temperature <temp_thres){
+                ans[STATE_SNOW]=rainfall; //all precipitation is stored in the snow storage
+                x1=0;
+            }
+        }
+
+
+		//static storage
+        double Hu = params[6]/1000.0; //max available storage in static tank [mm] to [m]
+        double x2 = max(0,x1 + h1 - Hu); //excedance flow to the second storage [m] [m/min] check units
+        //if ground is frozen, x1 goes directly to the surface
+        //therefore nothing is diverted to static tank
+        // Alexander changed frozen ground to soil temp for the input
+        if(frozen_ground <= 0){
+             x2 = x1;
+        }
+            
+        double d1 = x1 - x2; // the input to static tank [m/min]
+        double out1 = min(e_pot, h1); //evaporation from the static tank. it cannot evaporate more than h1 [m]
+        ans[STATE_STATIC] = d1 - out1; //differential equation of static storage
+        
+
+		//surface storage tank
+        double infiltration = params[7]*c_1; //infiltration rate [m/min]
+        // Alexander changed frozen ground to soil temp for the input
+        if(frozen_ground <= 0){
+            infiltration = 0;
+        }
+
+        double x3 = min(x2, infiltration); //water that infiltrates to gravitational storage [m/min]
+        double d2 = x2 - x3; // the input to surface storage [m] check units
+        double slope = params[9]; //m/s 
+        double manning = params[10];
+        double alfa2 = (pow(h2,2./3.) * pow(slope,0.5))/manning; //m/s (mannings's eqn. R=H)
+
+        // Set a limit so it does not go to zero
+        if(alfa2 <= 0.2){ 
+            alfa2 = 0.2; //Set so that the surface velocity does not go to zero
+        }
+
+        double w = alfa2 * L / A_h  * 60; // [1/min]
+        w = min(1,w); //water can take less than 1 min (dt) to leave surface
+        double out2 =0;
+        out2  = h2 * w; //direct runoff [m/min]
+        ans[STATE_SURFACE] = d2 - out2; //differential equation of surface storage
+        double surface_runoff = y_i[STATE_CUMSURF]; //[m3/hour]
+
+
+		// SUBSURFACE storage
+        double percolation = params[8]*c_1; // percolation rate to aquifer [m/min]
+        double x4 = min(x3,percolation); //water that percolates to aquifer storage [m/min]
+        double d3 = x3 - x4; // input to gravitational storage [m/min]
+        double alfa3 = params[11]*24*60; //residence time [days] to [min].
+        double out3=0;
+        if(alfa3>=1)
+            out3 = h3/alfa3; //interflow [m/min]
+        ans[STATE_SUBSURF] = d3 - out3; //differential equation for gravitational storage
+        double subsurface_runoff = y_i[STATE_CUMSUB];  //[m3/hour]
+
+        
+		//aquifer storage
+        double x5 = 0;//water loss to deeper aquifer [m]
+        double d4 = x4 - x5;
+        double alfa4 = params[12]*24*60; //residence time [days] to [min].
+        double out4=0;
+        if(alfa4>=1)
+            out4 = h4/alfa4 ; //base flow [m/min]
+        ans[STATE_GW] = d4 - out4; //differential equation for aquifer storage
+        double groundwater_runoff = y_i[STATE_CUMGW]; //[m3/hour]
+
+
+    	//channel storage
+	    ans[STATE_DISCHARGE] = -q + (out2 + out3 + out4) * c_2; //[m/min] to [m3/s]
+
+        double aux = forcing_values[0] *(1/1000.0) * A_h;//[mm/h] to [m3/h] 
+        ans[STATE_CUMRAINFALL] = -basin_rainfall + aux; //[m3/hour] 
+        ans[STATE_CUMSURF] = -surface_runoff + out2 * 60.0 * A_h; //[m/min] to [m3/hour]
+        ans[STATE_CUMSUB] = -subsurface_runoff + out3 *60.0 * A_h ; //[m/min] to [m3/hour]
+        ans[STATE_CUMGW] = -groundwater_runoff + out4 *60.0 *A_h ; //[m/min] to [m3/hour]
+
+	    for (i = 0; i < num_parents; i++){
+            ans[STATE_DISCHARGE] += y_p[i * dim + STATE_DISCHARGE];
+            ans[STATE_CUMRAINFALL] += y_p[i * dim +STATE_CUMRAINFALL];
+            ans[STATE_CUMSURF] += y_p[i * dim +STATE_CUMSURF];
+            ans[STATE_CUMSUB] += y_p[i * dim +STATE_CUMSUB];
+            ans[STATE_CUMGW] += y_p[i * dim +STATE_CUMGW];
+        }
+	        
+	    ans[STATE_DISCHARGE] = invtau * pow(q, lambda_1) * ans[STATE_DISCHARGE];    // discharge[0]
 }
 //Type 260
 //Contains 3 layers on hillslope: ponded, top layer, soil

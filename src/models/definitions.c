@@ -806,6 +806,20 @@ case 20:	num_global_params = 9;
 		globals->num_forcings = 5; //precip, et, temperature,soil temperature,discharge
 		globals->min_error_tolerances = 6; //link->dim; //as many as states:static,surface,subsurf,gw,channel,snow,
 		break;
+    //--------------------------------------------------------------------------------------------
+
+	case 410://tetis01
+		num_global_params = 1;//none
+		globals->uses_dam = 0;
+		globals->num_params = 15;//ai,lengt,ah,v0,lambda1,lambda2,hu,infil,perc,slope,manning,ressubsurf,resgw,meltf,tempth
+		globals->dam_params_size = 0;
+		globals->area_idx = 0;
+		globals->areah_idx = 2;
+		globals->num_disk_params = 15; //this is how many parameters we read in the prm file
+		globals->convertarea_flag = 0;
+		globals->num_forcings = 5; //precip, et, temperature,soil temperature,discharge
+		globals->min_error_tolerances = 10; //link->dim; //as many as states:static,surface,subsurf,gw,channel,snow,
+		break;
 //--------------------------------------------------------------------------------------------
 	case 2000:
 		num_global_params = 6;
@@ -995,10 +1009,10 @@ void ConvertParams(
         params[1] *= 1000;		//L_h: km -> m
         params[2] *= 1e6;		//A_h: km^2 -> m^2
     }
-    else if(model_uid==404){
-        params[0] *= 1E6;       //area hillslope km2
+    else if(model_uid==404 || model_uid==410){
+        params[2] *= 1E6;       //area hillslope km2
         params[1] *= 1000;		//L_h: km -> m
-        params[2] *= 1;		//drainage area: km2
+        params[0] *= 1;		//drainage area: km2
     }
     else if (model_uid == 300 || model_uid == 301)
     {
@@ -2087,7 +2101,28 @@ void InitRoutines(
 		    link->algebraic = NULL;
 		    link->check_state = NULL;
 		    link->check_consistency = &CheckConsistency_Nonzero_AllStates_q;
-	}        
+	    } 
+    else if (model_uid == 410) //
+		{
+		link->dim = 10;
+		link->no_ini_start = link->dim;
+		link->diff_start = 0;
+
+		link->num_dense = 1;
+		link->dense_indices = (unsigned int*) realloc(link->dense_indices,
+				link->num_dense * sizeof(unsigned int));
+		link->dense_indices[0] = 0;
+		//link->dense_indices[1] = 7;
+
+		if (link->has_res) {
+			link->differential = &TopLayerHillslope_Reservoirs;
+			link->solver = &ForcedSolutionSolver;
+		} else
+			link->differential = &model410;
+		    link->algebraic = NULL;
+		    link->check_state = NULL;
+		    link->check_consistency = &CheckConsistency_Nonzero_AllStates_q;
+	}          
 	//else if (model_uid == 300)
 	//{
 	//    link->dim = 2;
@@ -3292,19 +3327,19 @@ void Precalculations(
 		vals[4] = (0.001 / 60.0);		//(mm/hr->m/min)  c_1
 		vals[5] = A_h / 60.0;	//  c_2
 
-	} else if (model_uid == 404) //tetis01 model
+	} else if (model_uid == 404 || model_uid == 410) //tetis01 model
 		{
 		double* vals = params;
-		double A_h = params[0]; // area of the hillslope
+		double A_h = params[2]; // area of the hillslope
 		double L_i = params[1];	// channel lenght
-		double A_i = params[2]; // drainage area of the hillslope
+		double A_i = params[0]; // drainage area of the hillslope
 		double v_0 = params[3]; //velocity river in channels [m/s]
 		double lambda_1 = params[4]; //power discharge in routing function
 		double lambda_2 = params[5]; //power of area in routing function
 		double Hu = params[6]; //max available storage static storage [mm]
 		double infiltration = params[7]; //infiltration rate [mm/hr]
 		double percolation = params[8]; //percolation rate [mm/hr]
-		double slope = params[9]; //slope [m/m]
+		double slope = params[9]; //slope originally surface velocity [-]
         double manning = params[10]; //mannings
 		double alfa3 = params[11]; //linear reserv. coef gravitational storage [days]
 		double alfa4 = params[12]; //linear reserv. coef aquifer storage [days]
@@ -3916,7 +3951,7 @@ int ReadInitData(
             }
                 
 	    }
-    else if (model_uid == 404)        //tetis
+    else if (model_uid == 404 || model_uid == 410)        //tetis
 	    {
 
 	    }    
